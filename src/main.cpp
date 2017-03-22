@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
       meas_package.timestamp_ = timestamp;
       measurement_pack_list.push_back(meas_package);
     }
+    
   }
 
   // Create a UKF instance
@@ -146,9 +147,23 @@ int main(int argc, char* argv[]) {
       out_file_ << ro * cos(phi) << "\t"; // p1_meas
       out_file_ << ro * sin(phi) << "\t"; // p2_meas
     }
+    // output the NIS values for consistency check
+    out_file_ << ukf.NIS_lidar_ << "\t";
+    out_file_ << ukf.NIS_radar_ << "\n";
 
+    VectorXd x(4);
+    //x << ukf.x_(0), ukf.x_(1),ukf.x_(2), ukf.x_(3);
+    x << ukf.x_(0), ukf.x_(1),ukf.x_(2)*cos(ukf.x_(3)), ukf.x_(2)*sin(ukf.x_(3));
+    estimations.push_back(x);
+    //ground_truth.push_back(gt_pack_list[k].gt_values_);
+  
     out_file_ << "\n";
   }
+  
+  // compute the accuracy (RMSE)
+  Tools tools;
+  cout << "\n********************" << endl;
+  cout << "Accuracy - RMSE:" << endl << tools.CalculateRMSE(estimations, ground_truth) << endl;
 
   // close files
   if (out_file_.is_open()) {
