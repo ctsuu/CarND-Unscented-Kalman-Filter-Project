@@ -19,6 +19,7 @@ UKF::UKF() {
         0.5015,
         0.3528;
 
+
   // initial covariance matrix(use Udacity course sample)
   MatrixXd P_ = MatrixXd(5, 5);
   P_ <<    0.0043,   -0.0013,    0.0030,   -0.0022,   -0.0020,
@@ -68,8 +69,7 @@ UKF::UKF() {
   
   //define spreading parameter
   double lambda_ = 3-n_aug_;
-  
-  
+
 }
 
 UKF::~UKF() {}
@@ -85,6 +85,61 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+  if(meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_ == false)
+    return;
+  if(meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_ == false)
+    return;
+  
+  // Initialization
+  if (!is_initialized_) {
+    //first time stamp
+    previous_timestamp_  = meas_package.timestamp_;
+    
+    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+      /**
+      Convert radar from polar to cartesian coordinates and initialize state.
+      */
+      float px = measurement_pack.raw_measurements_[0]*cos(measurement_pack.raw_measurements_[1]);
+      //px = rho * cos(phi)
+      float py = measurement_pack.raw_measurements_[0]*sin(measurement_pack.raw_measurements_[1]);
+      //py = rho * sin(phi)
+      float vx = measurement_pack.raw_measurements_[2]*cos(measurement_pack.raw_measurements_[1]);
+      //vx = rho_dot * cos(phi)
+      float vy = measurement_pack.raw_measurements_[2]*sin(measurement_pack.raw_measurements_[1]);
+      //vy = rho_dot * sin(phi)
+
+
+      if (measurement_pack.raw_measurements_[0] == 0 or measurement_pack.raw_measurements_[1] == 0){
+        x_<< 0, 0, 0, 0, 0;
+        return;
+      }
+      
+      x_ <<px, py, vx, vy, 0;
+       
+    }
+    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+      /**
+      Initialize state.
+      */
+      px = measurement_pack.raw_measurements_[0];
+      py = measurement_pack.raw_measurements_[1];
+
+      if (px == 0 or py == 0){
+        return;
+      }
+      x_<<px, py, 0, 0, 0;
+    }
+
+    // done initializing, no need to predict or update
+    is_initialized_ = true;
+    return;
+  }
+  //* Prediction
+  //dt - convert delta time to seconds
+  float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0; 
+  previous_timestamp_ = measurement_pack.timestamp_;
+  //cout << dt << endl;
+    
 }
 
 /**
