@@ -3,7 +3,11 @@
 #include "Eigen/Dense"
 #include <vector>
 #include "ukf.h"
+
+
+
 #include "measurement_package.h"
+#include "ground_truth_package.h"
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
@@ -25,9 +29,10 @@ void check_arguments(int argc, char* argv[]) {
     cerr << usage_instructions << endl;
   } else if (argc == 2) {
     cerr << "Please include an output file.\n" << usage_instructions << endl;
-  } else if (argc == 3) {
+  } else if (argc == 3 || argc == 4) {
     has_valid_args = true;
-  } else if (argc > 3) {
+
+  } else if (argc > 4) {
     cerr << "Too many arguments.\n" << usage_instructions << endl;
   }
 
@@ -49,7 +54,26 @@ void check_files(ifstream& in_file, string& in_name,
   }
 }
 
+
+VectorXd CalculateRMSE(const vector<VectorXd> &estimations,
+                              const vector<VectorXd> &ground_truth) {
+  VectorXd rmse(4);
+  rmse << 0,0,0,0;
+
+
+  for(int i=0; i < estimations.size(); ++i){
+    // ... your code here
+    rmse += ((estimations[i]-ground_truth[i]).array()*(estimations[i]-ground_truth[i]).array()).matrix();
+
+  }
+  rmse = rmse/estimations.size(); /// estimations.size();
+  rmse = rmse.array().sqrt();
+
+  return rmse;
+}
+
 int main(int argc, char* argv[]) {
+
 
   check_arguments(argc, argv);
 
@@ -59,6 +83,24 @@ int main(int argc, char* argv[]) {
   string out_file_name_ = argv[2];
   ofstream out_file_(out_file_name_.c_str(), ofstream::out);
 
+
+  UKF ukf;
+  if(argc == 4) {
+    string modeflag = argv[3];
+    if(modeflag=="r") {
+      cout << "Set radar only mode" << endl;
+      ukf.use_laser_= false;
+    }
+    if(modeflag=="l") {
+      cout << "Set laser only mode" << endl;
+      ukf.use_radar_= false;
+    }
+
+  }
+  else {
+    cout << "Running in default mode (both sensors)" << endl;
+  }
+
   check_files(in_file_, in_file_name_, out_file_, out_file_name_);
 
   /**********************************************
@@ -66,6 +108,7 @@ int main(int argc, char* argv[]) {
    **********************************************/
 
   vector<MeasurementPackage> measurement_pack_list;
+  vector<GroundTruthPackage> gt_pack_list;
   string line;
 
   // prep the measurement packages (each line represents a measurement at a
@@ -73,6 +116,7 @@ int main(int argc, char* argv[]) {
   while (getline(in_file_, line)) {
     string sensor_type;
     MeasurementPackage meas_package;
+    GroundTruthPackage gt_package;
     istringstream iss(line);
     long timestamp;
 
@@ -110,11 +154,31 @@ int main(int argc, char* argv[]) {
       meas_package.timestamp_ = timestamp;
       measurement_pack_list.push_back(meas_package);
     }
-    
+
+    float x_gt;
+    float y_gt;
+    float vx_gt;
+    float vy_gt;
+    iss >> x_gt;
+    iss >> y_gt;
+    iss >> vx_gt;
+    iss >> vy_gt;
+    gt_package.gt_values_ = VectorXd(4);
+    gt_package.gt_values_ << x_gt, y_gt, vx_gt, vy_gt;
+    gt_pack_list.push_back(gt_package);
+
+
+
+
+
   }
 
   // Create a UKF instance
-  UKF ukf;
+
+
+  vector<VectorXd> estimations;
+  vector<VectorXd> ground_truth;
+
 
   size_t number_of_measurements = measurement_pack_list.size();
 
@@ -147,23 +211,28 @@ int main(int argc, char* argv[]) {
       out_file_ << ro * cos(phi) << "\t"; // p1_meas
       out_file_ << ro * sin(phi) << "\t"; // p2_meas
     }
-    // output the NIS values for consistency check
-    out_file_ << ukf.NIS_lidar_ << "\t";
+
+    // output the ground truth packages
+    out_file_ << gt_pack_list[k].gt_values_(0) << "\t";  //px
+    out_file_ << gt_pack_list[k].gt_values_(1) <<  "\t"; //py
+    out_file_ << ukf.NIS_laser_ <<  "\t";
     out_file_ << ukf.NIS_radar_ << "\n";
 
-    VectorXd x(4);
-    //x << ukf.x_(0), ukf.x_(1),ukf.x_(2), ukf.x_(3);
-    x << ukf.x_(0), ukf.x_(1),ukf.x_(2)*cos(ukf.x_(3)), ukf.x_(2)*sin(ukf.x_(3));
-    estimations.push_back(x);
-    //ground_truth.push_back(gt_pack_list[k].gt_values_);
-  
-    out_file_ << "\n";
+
+    VectorXd V;
+    V = VectorXd(4);
+    V << ukf.x_[0], ukf.x_[1], ukf.x_[2]*cos(ukf.x_[3]), ukf.x_[2]*sin(ukf.x_[3]);
+
+    estimations.push_back(V);
+
+
+
+    ground_truth.push_back(gt_pack_list[k].gt_values_);
+
   }
-  
-  // compute the accuracy (RMSE)
-  Tools tools;
-  cout << "\n********************" << endl;
-  cout << "Accuracy - RMSE:" << endl << tools.CalculateRMSE(estimations, ground_truth) << endl;
+
+
+  cout << "Accuracy - RMSE:" << endl << CalculateRMSE(estimations, ground_truth) << endl;
 
   // close files
   if (out_file_.is_open()) {

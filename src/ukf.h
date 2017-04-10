@@ -2,7 +2,9 @@
 #define UKF_H
 #include "Eigen/Dense"
 #include "measurement_package.h"
+#include "ground_truth_package.h"
 #include <vector>
+
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -13,10 +15,6 @@ public:
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
-  ///* initialize previous time stamp
-  long previous_timestamp_;
-  MeasurementPackage previous_measurement_;
-  
   ///* if this is false, laser measurements will be ignored (except for init)
   bool use_laser_;
 
@@ -26,20 +24,11 @@ public:
   ///* state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
   VectorXd x_;
 
-  ///* state covariance matrix 5x5
+  ///* state covariance matrix
   MatrixXd P_;
 
-  ///* create augmented mean vector 7x1
-  VectorXd x_aug_;
-  
-  ///* predicted sigma points matrix 
+  ///* predicted sigma points matrix
   MatrixXd Xsig_pred_;
-  
-  ///* create augmented sigma points matrix
-  MatrixXd Xsig_aug_;
-  
-  ///* create augmented state covariance
-  MatrixXd P_aug_;
 
   ///* time when the state is true, in us
   long time_us_;
@@ -56,6 +45,9 @@ public:
   ///* Laser measurement noise standard deviation position2 in m
   double std_laspy_;
 
+  ///* Laser measurement noise covariance matrix
+  MatrixXd R_laser_;
+
   ///* Radar measurement noise standard deviation radius in m
   double std_radr_;
 
@@ -65,17 +57,18 @@ public:
   ///* Radar measurement noise standard deviation radius change in m/s
   double std_radrd_ ;
 
+  ///* Radar measurement noise covariance matrix
+  MatrixXd R_radar_;
+
   ///* Weights of sigma points
   VectorXd weights_;
 
   ///* State dimension
   int n_x_;
-  
-  ///* Sigma points number (2*n_x_ + 1)
-  int n_sig_; 
-  
+
   ///* Augmented state dimension
   int n_aug_;
+  int n_sig_;
 
   ///* Sigma point spreading parameter
   double lambda_;
@@ -99,6 +92,7 @@ public:
   /**
    * ProcessMeasurement
    * @param meas_package The latest measurement data of either radar or laser
+   * @param gt_package The ground truth of the state x at measurement time
    */
   void ProcessMeasurement(MeasurementPackage meas_package);
 
@@ -120,22 +114,6 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
-  
-  void GenerateSigmaPoints(MatrixXd *, Xsig_out); 
-  
-  void GenerateAugmentedSigmaPoints(MatrixXd *, Xsig_out);
-
-  void SigmaPointPrediction(MatrixXd * Xsig_out);
-
-  void PredictMeanAndCovariance(VectorXd *, x_pred, MatrixXd *, P_pred);
-
-  void PredictLidarMeasurement(VectorXd *, X_pred, MatrixXd *, y_pred);
-
-  void PredictRadarMeasurement(VectorXd *, z_out, MatrixXd *, S_out);
-
-  void UpdateState(VectorXd *, X_out, MatrixXd *, P_out);
-
-  
 };
 
 #endif /* UKF_H */
