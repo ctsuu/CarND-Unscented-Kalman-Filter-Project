@@ -8,13 +8,16 @@ Self-Driving Car Engineer Nanodegree Program
  <img src="/img/newplot_1.png" width="800">
 </p>
 <p align="center">
- <img src="/img/newpot_1_laser_NIS.png" width="800">
+ <img src="/img/newplot_1_laser_NIS.png
+" width="800">
 </p>
 <p align="center">
- <img src="/img/newpot_1_radar_NIS.png" width="800">
+ <img src="/img/newplot_1_radar_NIS.png
+" width="800">
 </p>
 <p align="center">
- <img src="/img/newpot_2.png" width="800">
+ <img src="/img/newplot_2.png
+" width="800">
 </p>
 <p align="center">
  <img src="/img/newpot_2_laser_NIS.png" width="800">
